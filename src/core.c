@@ -4346,12 +4346,23 @@ static __inline void mdbx_meta_set_txnid(const MDBX_env *env, MDBX_meta *meta,
 }
 
 static __inline uint64_t mdbx_meta_sign(const MDBX_meta *meta) {
-  uint64_t sign = MDBX_DATASIGN_NONE;
-#if 0 /* TODO */
-  sign = hippeus_hash64(...);
-#else
-  (void)meta;
-#endif
+  uint64_t sign = 0;
+  uint32_t crc = 0;
+
+  // CRC must exclude the meta->mm_datasync_sign field!
+  crc32_1byte(&meta->mm_magic_and_version, sizeof(meta->mm_magic_and_version), crc);
+  crc32_1byte(&meta->mm_txnid_a, sizeof(meta->mm_txnid_a), crc);
+  crc32_1byte(&meta->mm_extra_flags, sizeof(meta->mm_extra_flags), crc);
+  crc32_1byte(&meta->mm_validator_id, sizeof(meta->mm_validator_id), crc);
+  crc32_1byte(&meta->mm_extra_pagehdr, sizeof(meta->mm_extra_pagehdr), crc);
+  crc32_1byte(&meta->mm_geo, sizeof(meta->mm_geo), crc);
+  crc32_1byte(&meta->mm_dbs, sizeof(meta->mm_dbs), crc);
+  crc32_1byte(&meta->mm_canary, sizeof(meta->mm_canary), crc);
+  crc32_1byte(&meta->mm_txnid_b, sizeof(meta->mm_txnid_b), crc);
+  crc32_1byte(&meta->mm_pages_retired, sizeof(meta->mm_pages_retired), crc);
+  crc32_1byte(&meta->mm_bootid, sizeof(meta->mm_bootid), crc);
+
+  sign = ((uint64_t) crc << 32) | MDBX_DATASIGN_CRC32;
   /* LY: newer returns MDBX_DATASIGN_NONE or MDBX_DATASIGN_WEAK */
   return (sign > MDBX_DATASIGN_WEAK) ? sign : ~sign;
 }
@@ -6366,6 +6377,8 @@ int mdbx_txn_begin(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags,
                    MDBX_txn **ret) {
   MDBX_txn *txn;
   unsigned size, tsize;
+
+  mdbx_warning("%s", "ZZZZZ");
 
   if (unlikely(!ret))
     return MDBX_EINVAL;

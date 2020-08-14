@@ -17,6 +17,7 @@
 #include "core.c"
 #include "osal.c"
 #include "version.c"
+#include "crc32.c"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "lck-windows.c"
